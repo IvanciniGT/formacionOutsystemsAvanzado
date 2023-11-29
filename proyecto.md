@@ -188,3 +188,39 @@ Validar un DNI
     LetrasDeControl = "TRWAGMYFPDXBNJZSQVHLCKE"
 
     PATRON REGEX = "^[0-9]{1,8}[ -]?[A-Z]$"  --> regex101.com
+---
+
+Alta
+Revision
+
+
+ExpedienteFiltroMO
+  nombre = "Felipe" -> Lista vacía
+  Servicio REST ->  200 OK BODY  []
+  estados = (-1)    -> Lista vacía? No he podido hacer la búsqueda con esos datos!
+  Servicio REST ->  400 BAD REQUEST ["Error": "El estado 1 no existe"]
+
+List<ExpedienteMO> recuperarExpedientes(ExpedienteFiltroMO filtros) {
+
+    // Comprobar que los estados existen
+    // Asegurarme que los valores de filtros.estados son correctos.. es decir que están 
+    // Dentro de una lista de estados permitidos
+    // Lista de estados permitidos la tengo en BBDD (Persistencia)
+    // Cuando arranque el sistema cargar los estados y guardarlos en RAM (cache)
+
+    // Si no existen que hago? 
+    // OPCION 1: Devuelvo una lista vacía - Descartada... queremos ser capaces de informar al usuario/consumidor que lo que está haciendo no tiene sentido
+    // OPCION 2: Exception
+
+
+}
+
+Interfaz - OTRO MODULO
+
+---
+
+Pantallas con montón de filtros de búsqueda
+El problema es que los filtros admiten multiples valores
+Esos valores la interfaz los manda a un server action para hacer una query
+En la query, como meto esos valores para un campo... 5 valores... 10 valores... 100 valores
+Estado:  1, 2, 3, 4, 5, 6
