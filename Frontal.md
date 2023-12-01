@@ -85,3 +85,129 @@ Como dar persistencia en frontal a los filtros de búsqueda
 Estado: Alta
 Se va
 Y luego vuelve.. y que siga ahí alta
+
+
+---
+
+# Pantalla de búsqueda
+
+  PANTALLA
+        < eventos
+            FORMULARIO
+                                            FILTRO1 
+                        <eventos            FILTRO2 
+                                            FILTRO3
+                                            BOTONES
+        propiedades > initialize / onPropChanges
+            LISTADO
+
+## Comunicaciones basadas en propiedades (padre-> hijo) y eventos (hijo-> padre)
+
+  PANTALLA                                  ServicioGestiónDelFormulario (clase.js)
+    FORMULARIO*                                   * subscribirmeAlFormulario()
+        FILTRO1 +*                                + nuevoValorDeFiltro(campo, valor)
+        FILTRO2 +*                                - restablecerFiltros()
+        FILTRO3 +*                                var Filtros={}
+        BOTONES *-
+    LISTADO*
+
+REDUX es una librería que nos ofrece una generalización/estandarización de esta forma de comunicarse
+
+La cuestión con esta forma de comunicación es que necesito en el navegador unas variables en memoria que tengan un scope mayor que el de las funciones (subscribirmeAlFormulario, nuevoValorDeFiltro, restablecerFiltros, etc...)
+Además, necesitamos de una librería que nos permite suscribirnos a datos: RxJS / Redux. 
+    Implementación de un patrón Observable.
+
+Outsystems no me da ninguna de estas 2 cosas.
+
+Esto lo podemos montar en OutSystems... pero con calzador/trucos rastreros.
+- Los eventos /propiedades tienen que estar haciendo el transporte de los datos. (1)
+
+La única opción que tengo en OutSystems para esos datos globales: Client 
+    Pero están muy limitados: Solo tipos simples y tienen persistencia en el cliente (navegador)
+                                            ^                  ^
+                                            JSON            En ocasiones esto es un problema (Seguridad)
+
+Otro tema es que no podemos suscribirnos a cambios en esas variables, necesito seguir trabajando con eventos, para lanzar notificaciones de cambios.... me evito el tener que estar mandando los datos. (1)
+
+
+## Problemilla: 
+
+Cada letra que escriba lanza una petición al servidor... y eso es un problema de rendimiento.
+Lo resolvemos con JS:
+
+if(ClientVariable)
+    clearTimeout( ClientVariable )
+
+id = setTimeout( ClientActionRefresco, 300 )
+ClientVariable =  id
+
+
+----
+ClientAction:
+ASSIGN :        ClienteVariable = undefined
+REFRESH DATA :  ActualizarBusqueda
+
+----
+
+Queries paginadas:
+
+Se hace en 2 fases:
+Primera query: LA que quiero hacer
+Segunda query, sobre la anterior
+                y la cuenta de campos de la anterior
+
+```sql
+-- OPCION 1
+declare @GridFilterClient varchar(50) = '0000000008';
+declare @SkipRows int = 0;
+declare @PageSize int = 25;
+
+With query as (
+    --- SOLO TENGO QUE CAMBIAR ESTO ENTRE PANTALLAS
+	SELECT distinct
+		ClientId AS 'ClientId',  
+		ClientName AS 'ClientName'  
+	FROM  [OSClientesNoRentables].[dbo].[V_Grid_Clients] 
+	Where (@GridFilterClient ='' OR [ClientId] like @GridFilterClient+'%') 
+    --- HASTA AQUI !
+)
+
+Select 
+    query.*,Total
+From 
+    query 
+    cross join ( select count(*) as Total from query ) as Cuenta
+ORDER BY 1  
+OFFSET (@SkipRows) ROWS  
+FETCH NEXT @PageSize ROWS ONLY
+```
+----
+
+Tipos de joins:
+    Joins normales: Inner / outer (left, right, full)
+    Cross Join:     Producto cartesiano
+
+    | Horas de consulta |
+    | 9:00              |
+    | 10:00             |
+    | 11:00             |
+
+    | Medicos           |
+    | Dr. House         |
+    | Dr. Strange       |
+    | Dr. Who           |
+
+    Producto cartesiano:
+    | Horas de consulta | Medicos           |
+    | 9:00              | Dr. House         |
+    | 9:00              | Dr. Strange       |
+    | 9:00              | Dr. Who           |
+    | 10:00             | Dr. House         |
+    | 10:00             | Dr. Strange       |
+    | 10:00             | Dr. Who           |
+    | 11:00             | Dr. House         |
+    | 11:00             | Dr. Strange       |
+    | 11:00             | Dr. Who           |
+
+
+
